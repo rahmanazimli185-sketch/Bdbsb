@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="az"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diferensial kondensasiya prosesi</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:"Segoe UI",Arial,sans-serif;color:#fff}
+#stage{position:absolute;left:50%;top:50%;width:min(100vw,177.78vh);aspect-ratio:16/9;transform:translate(-50%,-50%);background:#06101c;--u:1px;overflow:hidden}
+canvas{width:100%;height:100%;display:block}
+#sub{position:absolute;left:8%;right:8%;bottom:calc(var(--u)*112);text-align:center;font-size:calc(var(--u)*34);line-height:1.3;background:rgba(0,0,0,.68);padding:calc(var(--u)*8) calc(var(--u)*20);border-radius:calc(var(--u)*10);display:none;text-shadow:0 1px 3px #000}
+#note{position:absolute;right:calc(var(--u)*20);top:calc(var(--u)*14);font-size:calc(var(--u)*18);color:#9fb7cc;max-width:45%;text-align:right}
+#big{position:absolute;inset:0;background:rgba(4,12,22,.93);display:flex;align-items:center;justify-content:center;text-align:center;padding:5%}
+#big h1{font-size:calc(var(--u)*52);margin:0 0 calc(var(--u)*16)}
+#big p{font-size:calc(var(--u)*26);color:#9fb7cc;margin:calc(var(--u)*12) 0}
+#start{font-size:calc(var(--u)*34);padding:calc(var(--u)*14) calc(var(--u)*50);border:0;border-radius:calc(var(--u)*12);background:#2f8fe0;color:#fff;cursor:pointer;margin-top:calc(var(--u)*20)}
+#bar{position:absolute;left:0;right:0;bottom:0;display:flex;flex-wrap:wrap;align-items:center;gap:calc(var(--u)*10);padding:calc(var(--u)*10) calc(var(--u)*16);background:linear-gradient(transparent,rgba(0,0,0,.85));font-size:max(11px,calc(var(--u)*20))}
+#bar button{font:inherit;color:#fff;background:#1c3a5a;border:1px solid #3b82c4;border-radius:6px;padding:.25em .7em;cursor:pointer}
+#bar button:hover{background:#2a5483}
+#pg{flex:1;min-width:120px;height:calc(var(--u)*10);background:#1c3a5a;border-radius:6px;overflow:hidden}
+#pgi{display:block;height:100%;width:0;background:#4db2ff}
+#vol{width:calc(var(--u)*110)}
+</style></head><body>
+<div id="stage">
+<canvas id="cv" width="1920" height="1080"></canvas>
+<div id="sub"></div><div id="note"></div>
+<div id="big"><div>
+<h1>Təbii qaz-kondensat qarışıqlarının diferensial kondensasiya prosesinin hesablanması</h1>
+<p>Dəniz qaz və qaz-kondensat yataqlarının işlənməsi və istismarı</p>
+<p id="vi"></p>
+<button id="start">▶ Başlat</button>
+</div></div>
+<div id="bar">
+<button id="bplay">▶ Play</button><button id="bpause">⏸ Pause</button><button id="brep">↻ Replay</button>
+<span id="sc"></span><div id="pg"><i id="pgi"></i></div>
+<label>🔊 <input type="range" id="vol" min="0" max="1" step="0.05" value="1"></label>
+<button id="bcc">Subtitr: açıq</button><button id="bau">Audio fayl</button><button id="bfs">⛶ Tam ekran</button>
+<input type="file" id="af" accept="audio/*" multiple hidden>
+</div></div>
+<script>
+(()=>{
+const $=i=>document.getElementById(i),cv=$('cv'),c=cv.getContext('2d'),W=1920,H=1080,PI=Math.PI;
+if(!c.roundRect)c.roundRect=function(x,y,w,h){this.rect(x,y,w,h)};
+const cl=x=>x<0?0:x>1?1:x,E=x=>{x=cl(x);return x*x*(3-2*x)},L=(a,b,t)=>a+(b-a)*t,sg=(p,a,b)=>E((p-a)/(b-a));
+const R=i=>{const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+function T(s,x,y,sz,col,al,w){c.font=(w||500)+' '+(sz||32)+'px "Segoe UI",Arial,sans-serif';c.fillStyle=col||'#dbe7f3';c.textAlign=al||'left';c.fillText(s,x,y)}
+function ln(a,b,d,e,col,w,dash){c.beginPath();c.moveTo(a,b);c.lineTo(d,e);c.strokeStyle=col;c.lineWidth=w||2;c.setLineDash(dash||[]);c.stroke();c.setLineDash([])}
+function dot(x,y,r,col){c.beginPath();c.arc(x,y,r,0,2*PI);c.fillStyle=col;c.fill()}
+function rr(x,y,w,h,r,f,s,lw){c.beginPath();c.roundRect(x,y,w,h,r);if(f){c.fillStyle=f;c.fill()}if(s){c.strokeStyle=s;c.lineWidth=lw||2;c.stroke()}}
+function bgd(){const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,'#07162a');g.addColorStop(1,'#0e2e4d');c.fillStyle=g;c.fillRect(0,0,W,H)}
+function head(i){T('Səhnə '+(i+1)+' / '+S.length,60,64,26,'#7fb3d9');T(S[i].t,60,112,46,'#fff','left',700);ln(60,132,760,132,'#3b82c4',3)}
+const AL=(p,a,b,fn)=>{c.globalAlpha=sg(p,a,b);fn();c.globalAlpha=1};
+
+/* ---------- Səhnə 1: dəniz yatağı ---------- */
+function world(z,cx,cy,fl,t){
+ c.save();c.translate(960,540);c.scale(z,z);c.translate(-cx,-cy);
+ let g=c.createLinearGradient(0,-300,0,300);g.addColorStop(0,'#0a2038');g.addColorStop(1,'#1d5a85');c.fillStyle=g;c.fillRect(-2500,-300,6000,600);
+ c.fillStyle='#0f5f8f';c.fillRect(-2500,300,6000,160);
+ c.strokeStyle='rgba(180,225,255,.45)';c.lineWidth=2;
+ for(let k=0;k<3;k++){c.beginPath();for(let x=-1000;x<3000;x+=30){const y=312+k*38+Math.sin(x*.02+t*1.5+k)*4;x==-1000?c.moveTo(x,y):c.lineTo(x,y)}c.stroke()}
+ c.fillStyle='#3b3a40';c.fillRect(-2500,460,6000,240);
+ c.fillStyle='#8a6a2e';c.fillRect(-2500,700,6000,140);
+ c.fillStyle='#2b2a30';c.fillRect(-2500,840,6000,600);
+ for(let i=0;i<170;i++){c.beginPath();c.arc(100+R(i)*1720,712+R(i+300)*116,5,0,7);c.strokeStyle='rgba(60,40,10,.6)';c.lineWidth=2;c.stroke()}
+ ln(880,274,880,460,'#aab6c2',8);ln(1040,274,1040,460,'#aab6c2',8);
+ rr(840,250,240,26,3,'#c9d3dc');rr(870,222,70,28,3,'#8d9aa8');
+ c.beginPath();c.moveTo(930,250);c.lineTo(990,250);c.lineTo(960,160);c.closePath();c.strokeStyle='#e0e6ec';c.lineWidth=5;c.stroke();
+ ln(960,276,960,790,'#cfd8e0',14);ln(960,276,960,790,'#0b1623',5);
+ if(fl>0)for(let i=0;i<70;i++){const u=((t*.12+i/70)%1),sx=960+(R(i)*2-1)*400,sy=770+R(i+9)*50;let x,y;
+  if(u<.45){const f=u/.45;x=L(sx,960,f);y=L(sy,775,f)}else{x=960;y=L(775,280,(u-.45)/.55)}
+  dot(x,y,5,'rgba(255,230,140,'+fl+')')}
+ c.restore();
+ return(x,y)=>[960+(x-cx)*z,540+(y-cy)*z]}
+const lab=(m,x,y,s,p,a,b,al)=>{const q=m(x,y);c.globalAlpha=sg(p,a,b);T(s,q[0],q[1],34,'#fff',al||'left',600);c.globalAlpha=1};
+function s1(p,t){const e=E(p),z=L(1,1.35,e),m=world(z,960,L(420,650,e),sg(p,.3,.45),t);head(0);
+ lab(m,1100,240,'Platforma',p,.08,.18);lab(m,980,560,'Quyu',p,.2,.3);lab(m,1010,790,'Qaz-kondensat layı (p, T yüksək)',p,.4,.5);
+ AL(p,.65,.8,()=>T('Lay təzyiqi azalır → ağır komponentlər mayeyə çevrilir',960,830,36,'#ffd166','center',700))}
+
+/* ---------- Səhnə 2: faza diaqramı ---------- */
+const bz=(a,b,d,t)=>{const u=1-t;return[u*u*a[0]+2*u*t*b[0]+t*t*d[0],u*u*a[1]+2*u*t*b[1]+t*t*d[1]]};
+const SG=[[[.12,.06],[.22,.62],[.55,.8]],[[.55,.8],[.8,.88],[.93,.52]],[[.93,.52],[.9,.18],[.12,.06]]];
+const P2=q=>[260+q[0]*1000,820-q[1]*600];
+function yAt(k,x){let b=0,bd=9;for(let t=0;t<=1;t+=.002){const q=bz(SG[k][0],SG[k][1],SG[k][2],t),d=Math.abs(q[0]-x);if(d<bd){bd=d;b=q[1]}}return b}
+const TR=.78,YU=yAt(1,TR),YL=yAt(2,TR),XT=260+TR*1000;
+function s2(p,t){bgd();head(1);
+ ln(260,820,1310,820,'#6e87a0',3);ln(260,820,260,200,'#6e87a0',3);
+ T('T, temperatur →',1310,862,28,'#9fb7cc','right');
+ c.save();c.translate(205,520);c.rotate(-PI/2);T('P, təzyiq →',0,0,28,'#9fb7cc','center');c.restore();
+ const f=3*sg(p,.03,.3),fa=sg(p,.28,.36);
+ if(fa>0){c.beginPath();let fr=1;SG.forEach(g=>{for(let k=0;k<=40;k++){const q=P2(bz(g[0],g[1],g[2],k/40));fr?c.moveTo(q[0],q[1]):c.lineTo(q[0],q[1]);fr=0}});c.closePath();c.fillStyle='rgba(255,170,60,'+(.12*fa)+')';c.fill()}
+ SG.forEach((g,k)=>{const tm=cl(f-k);if(tm<=0)return;c.beginPath();for(let i=0;i<=40;i++){const q=P2(bz(g[0],g[1],g[2],tm*i/40));i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])}c.strokeStyle=k?'#ff9d3c':'#4db2ff';c.lineWidth=6;c.stroke()});
+ AL(p,.3,.4,()=>{const C=P2([.55,.8]),K=P2([.93,.52]);dot(C[0],C[1],9,'#fff');dot(K[0],K[1],9,'#fff');
+  T('C – kritik nöqtə',C[0]-20,C[1]-24,28,'#fff','right');T('Krikondenterm',K[0]+22,K[1]+8,28,'#fff');
+  T('Qaynama nöqtələri əyrisi',510,505,26,'#4db2ff','right');T('Çiy nöqtələri əyrisi',1040,318,26,'#ff9d3c','center');
+  T('İki fazalı oblast',700,650,30,'#ffd9a0','center');T('Retroqrad kondensasiya',XT-24,530,26,'#ffd166','right')});
+ AL(p,.36,.44,()=>{ln(XT,215,XT,820,'#5ee0ff',3,[12,8]);T('T_lay',XT,856,28,'#5ee0ff','center')});
+ const yy=L(.97,.04,E((p-.42)/.5)),M=P2([TR,yy]);
+ if(yy<YU){const a=P2([TR,YU]),b=P2([TR,Math.max(yy,YL)]);ln(a[0],a[1],b[0],b[1],'#ffd166',10);const d=P2([TR,YU]);dot(d[0],d[1],9,'#ff5b5b');T('p_çiy',d[0]-20,d[1]+30,28,'#ff8a8a','right')}
+ if(yy<YL){const d=P2([TR,YL]);dot(d[0],d[1],9,'#7fe0a0');T('aşağı çiy nöqtəsi',d[0]-20,d[1]+10,26,'#7fe0a0','right')}
+ if(p>.42){dot(M[0],M[1],13,'#fff');dot(M[0],M[1],7,'#2f8fe0')}
+ const rg=yy>YU?['Birfazalı qaz: p > p_çiy','#7fe0a0']:yy>YL?['İki faza: qazdan maye ayrılır','#ffb75c']:['Maye yenidən buxarlanır','#9fb7cc'];
+ rr(1380,230,480,170,14,'rgba(10,30,50,.8)','#3b82c4');T('İzotermik təzyiq azalması',1410,282,28,'#9fb7cc');T(rg[0],1410,340,29,rg[1],'left',700);
+ T('● Mavi əyri – qaynama nöqtələri',1390,470,26,'#4db2ff');T('● Narıncı əyri – çiy nöqtələri',1390,515,26,'#ff9d3c');T('● Sxematik diaqram',1390,560,26,'#9fb7cc')}
+
+/* ---------- PVT hüceyrəsi ---------- */
+function cell(o){const x=580,w=240,top=230,t=o.t,lh=o.lf*340;
+ rr(520,190,360,640,24,'rgba(60,140,200,.10)','#3b82c4',3);T('Termostat · T = const',700,858,26,'#7fb3d9','center');
+ rr(x,top,w,o.yp-top,0,'rgba(180,220,255,.07)');rr(x,o.yp-lh,w,lh,0,'rgba(230,150,40,.8)');
+ for(let i=0;i<o.np;i++)dot(x+14+R(i)*(w-28)+Math.sin(t*2+i)*5,top+12+R(i+99)*Math.max(10,o.yp-top-lh-24)+Math.cos(t*2.3+i*1.7)*5,4,'rgba(200,235,255,.85)');
+ if(o.dr>0)for(let i=0;i<16;i++){const u=(t*.35+R(i))%1;c.globalAlpha=o.dr*(1-u*.3);dot(x+20+R(i+5)*(w-40),top+40+u*Math.max(10,o.yp-lh-top-40),4,'#ffb347');c.globalAlpha=1}
+ ln(x,top,x,o.yp,'#9fd0f0',5);ln(x+w,top,x+w,o.yp,'#9fd0f0',5);ln(x-10,top,x+w+10,top,'#9fd0f0',7);
+ rr(x+3,o.yp,w-6,40,4,'#7d8794');rr(x+w/2-12,o.yp+40,24,830-o.yp-40,0,'#566170');rr(x-30,810,w+60,20,4,'#3a4452');
+ ln(x-50,570,x+w,570,'rgba(255,255,255,.55)',2,[8,8]);T('V₀',x+w+14,578,26,'#cfe3f5');
+ const gx=400,gy=330;ln(x,gy,gx+70,gy,'#9fd0f0',8);dot(gx,gy,72,'#0d1f33');c.beginPath();c.arc(gx,gy,72,0,2*PI);c.strokeStyle='#9fd0f0';c.lineWidth=5;c.stroke();
+ const ag=a=>PI*.75+a*PI*1.5,dA=ag(.72);ln(gx+Math.cos(dA)*52,gy+Math.sin(dA)*52,gx+Math.cos(dA)*68,gy+Math.sin(dA)*68,'#ff5b5b',5);
+ const na=ag(o.pr);ln(gx,gy,gx+Math.cos(na)*58,gy+Math.sin(na)*58,'#ffd166',5);dot(gx,gy,7,'#ffd166');T('Manometr',gx,435,26,'#cfe3f5','center');
+ if(o.an){ln(820,260,1000,260,'#9fd0f0',9);rr(1000,200,220,120,10,'#142a44','#3b82c4');T('Qaz sayğacı,',1110,248,26,'#cfe3f5','center');T('xromatoqraf',1110,284,26,'#cfe3f5','center');
+  dot(900,260,18,o.valve?'#34d27b':'#d9534f');T(o.valve?'klapan açıq':'klapan bağlı',900,310,24,'#cfe3f5','center');
+  if(o.esc)for(let i=0;i<9;i++){const u=(t*.6+i/9)%1;dot(830+u*170,260,5,'rgba(200,235,255,.9)')}}}
+function bars(pr,lf,y0){T('Təzyiq (p)',1300,y0,28,'#9fb7cc');rr(1300,y0+14,500,24,6,'#12304d');rr(1300,y0+14,500*pr,24,6,'#3b9be0');
+ const tx=1300+500*.72;ln(tx,y0+6,tx,y0+46,'#ff5b5b',3);T('p_çiy',tx,y0+74,24,'#ff8a8a','center');
+ const y1=y0+130;T('Maye həcmi (V₀-ın %-i)',1300,y1,28,'#9fb7cc');rr(1300,y1+14,500,24,6,'#12304d');rr(1300,y1+14,500*cl(lf/.24),24,6,'#ffb347')}
+const lfn=pr=>{const x=cl((.72-pr)/.47);return .22*Math.pow(x,.8)*(1-.35*x*x)};
+
+function s3(p,t){bgd();head(2);
+ const pr=L(1,.25,E((p-.35)/.55)),yp=570+(1-pr)/.75*200,lf=pr<.72?lfn(pr):0;
+ cell({yp,lf,pr,np:70,dr:cl((.74-pr)/.05),t});
+ AL(p,.05,.15,()=>{T('Qaz fazası',840,420,28,'#cfe3f5');T('Porşen',840,yp+32,28,'#cfe3f5')});
+ T('T = T_lay = const',1300,260,34,'#5ee0ff','left',700);
+ const g=pr>.72;T(g?'p > p_çiy: birfazalı qaz':'p < p_çiy: iki faza, kondensat',1300,325,32,g?'#7fe0a0':'#ffb75c','left',700);
+ bars(pr,lf,400);
+ AL(p,.5,.6,()=>T('Retroqrad kondensasiya',1300,700,34,'#ffd166','left',700))}
+
+/* ---------- Səhnə 4: diferensial pillə ---------- */
+const PE=[.62,.42,.28],EX=[110,140,170],LL=[.12,.18,.17];
+function s4(p,t){bgd();head(3);
+ const q=p*2.999,k=Math.floor(q),f=q-k,pp=k?PE[k-1]:.72,lp=k?LL[k-1]:0;
+ let pr,yp,lf=lp,dr=0,vl=0,u=0,ph;
+ if(f<.3){ph=0;u=E(f/.3);pr=L(pp,PE[k],u);yp=570+EX[k]*u}
+ else if(f<.5){ph=1;pr=PE[k];yp=570+EX[k];lf=L(lp,LL[k],E((f-.3)/.2));dr=1}
+ else if(f<.9){ph=2;u=E((f-.5)/.4);pr=PE[k];yp=570+EX[k]*(1-u);lf=LL[k];vl=1}
+ else{ph=3;pr=PE[k];yp=570;lf=LL[k]}
+ cell({yp,lf,pr,np:70-14*(k+(ph==2?u:ph==3?1:0)),dr,valve:vl,esc:vl&&u<1?1:0,an:1,t});
+ T('Pillə '+(k+1)+' / 3',1110,370,34,'#ffd166','center',700);
+ ['1. Təzyiqi azaldırıq (p ↓)','2. Tarazlıq: maye ayrılır','3. Qaz çıxarılır: p = const, V → V₀','4. Ölçülür: V(q), tərkib, z'].forEach((s,i)=>T(s,1300,455+i*52,32,ph==i?'#ffd166':'#7f98ae','left',ph==i?700:500));
+ bars(pr,lf,700)}
+
+/* ---------- Səhnə 5: hesablama ---------- */
+function s5(p,t){bgd();head(4);
+ ['n₀ = p₀·V₀ / (z₀·R·T)','Δn(k) = p(k)·ΔV(q,k) / (z(q,k)·R·T)','n(k) = n(k−1) − Δn(k)','z(2f,k) = p(k)·V₀ / (n(k)·R·T)','S(k) = V(m,k) / V₀ · 100 %','G(k) = ΣΔn / n₀ · 100 %'].forEach((s,i)=>{
+  const a=.05+i*.11;AL(p,a,a+.07,()=>{rr(60,185+i*86,980,68,10,'rgba(20,60,100,.55)','#3b82c4');T(s,90,232+i*86,36,'#fff','left',600)})});
+ AL(p,.7,.78,()=>T('q – qaz, m – maye, 2f – ikifazalı, z – sıxılma əmsalı, k – pillə',60,740,26,'#9fb7cc'));
+ const X0=1130,X1=1830,YB=760,YT=250;
+ ln(X0,YB,X1,YB,'#6e87a0',3);ln(X0,YB,X0,YT,'#6e87a0',3);T('p (təzyiq) →',X1,800,26,'#9fb7cc','right');
+ c.save();c.translate(1085,500);c.rotate(-PI/2);T('Maye həcmi, V₀-ın %-i',0,0,26,'#9fb7cc','center');c.restore();
+ T('Kondensatın doyma dərəcəsi (sxematik əyri)',1480,215,28,'#fff','center',600);
+ const f=sg(p,.15,.85),px=pr=>X0+(pr-.25)/.75*(X1-X0),py=pr=>YB-lfn(pr)/.24*480;
+ c.beginPath();for(let i=0;i<=120;i++){const pr=1-.75*f*i/120;i?c.lineTo(px(pr),py(pr)):c.moveTo(px(pr),py(pr))}c.strokeStyle='#ffb347';c.lineWidth=6;c.stroke();
+ ln(px(.72),YB,px(.72),YT+40,'#ff5b5b',3,[10,8]);T('p_çiy',px(.72),YB+36,26,'#ff8a8a','center');
+ let mx=0,mp=1;for(let pr=1;pr>=.25;pr-=.005)if(lfn(pr)>mx){mx=lfn(pr);mp=pr}
+ AL(f,.7,.85,()=>{dot(px(mp),py(mp),9,'#fff');T('maksimum',px(mp),py(mp)-22,26,'#fff','center')});
+ const cur=1-.75*f;dot(px(cur),py(cur),9,'#fff')}
+
+/* ---------- Səhnə 6: yekun ---------- */
+function s6(p,t){const e=E(p),m=world(L(1.3,.85,e),1470,L(650,520,e),1,t);head(5);
+ rr(1080,200,780,500,18,'rgba(6,20,36,.86)','#3b82c4',3);
+ ['1. p < p_çiy → retroqrad kondensasiya','2. CVD: maye həcmi, qaz tərkibi, z-əmsalı','3. İşlənmə rejimi və kondensat hasilatı'].forEach((s,i)=>{
+  const a=.15+i*.2;AL(p,a,a+.12,()=>T(s,1110,300+i*120,32,'#fff','left',600))});
+ AL(p,.75,.9,()=>T('Diferensial kondensasiya təcrübəsi kondensat itkisini qiymətləndirir',1110,640,26,'#ffd166'))}
+
+/* ---------- Səhnələr və diktor mətni ---------- */
+const S=[
+{t:'Dəniz qaz-kondensat yatağı',vis:14,d:s1,tx:['Dəniz qaz-kondensat yataqlarında karbohidrogen qarışığı layda yüksək təzyiq altında yalnız qaz halında olur.','İstismar zamanı lay təzyiqi azaldıqca qarışığın faza vəziyyəti dəyişir və layda ağır komponentlər mayeyə çevrilir.','Bunu qiymətləndirmək üçün laboratoriyada diferensial kondensasiya təcrübəsi aparılır.']},
+{t:'Faza diaqramı və retroqrad kondensasiya',vis:16,d:s2,tx:['Qarışığın davranışı təzyiq-temperatur faza diaqramı ilə izah olunur.','Lay temperaturu kritik temperaturdan yüksək, krikondentermdən aşağıdırsa, təzyiq düşdükcə qarışıq çiy nöqtəsinə çatır.','Bu nöqtədən aşağıda qazdan maye ayrılır; bu hadisəyə retroqrad kondensasiya deyilir.','Daha aşağı təzyiqdə maye qismən yenidən buxarlanır.']},
+{t:'PVT hüceyrəsi: təzyiqin azaldılması',vis:18,d:s3,tx:['Təcrübə termostatda yerləşən PVT hüceyrəsində, lay temperaturunda aparılır.','Başlanğıcda nümunə çiy nöqtəsindən yüksək təzyiqdə, birfazalı qaz halındadır.','Porşen aşağı çəkildikcə təzyiq azalır; çiy nöqtəsində ilk damcılar görünür və kondensat hüceyrənin dibində toplanır.','Maye həcmi ilkin həcmin faizi ilə ölçülür.']},
+{t:'Diferensial pillə: qazın çıxarılması',vis:18,d:s4,tx:['Hər təzyiq pilləsində tarazlıq yarandıqdan sonra artıq qaz hüceyrədən çıxarılır.','Porşen yuxarı hərəkət edir, təzyiq sabit qalır və həcm ilkin qiymətinə qayıdır.','Çıxarılan qazın həcmi, tərkibi və z-əmsalı ölçülür, kondensat isə hüceyrədə qalır.','Əməliyyat bir neçə pillə üçün təkrarlanır.']},
+{t:'Maddə balansı və hesablama',vis:18,d:s5,tx:['Hesablama maddə balansına əsaslanır.','İlkin mol sayı qaz halının tənliyindən tapılır, hər pillədə çıxarılan qazın mol sayı isə təzyiq və z-əmsalı ilə hesablanır.','Hüceyrədə qalan mol sayından ikifazalı z-əmsalı təyin edilir.','Kondensatın doyma dərəcəsi maye həcminin ilkin həcmə nisbətidir; onun əyrisi maksimumdan keçir.']},
+{t:'Yekun nəticə',vis:12,d:s6,tx:['Beləliklə, təzyiq çiy nöqtəsindən aşağı düşdükdə retroqrad kondensasiya baş verir.','Diferensial kondensasiya təcrübəsi kondensatın miqdarını və qazın tərkibini müəyyən edir.','Bu nəticələr yatağın işlənmə rejimini və kondensat hasilatını əsaslandırmaq üçün istifadə olunur.']}];
+let tot=0;S.forEach(s=>{s.n=s.tx.join('').length;s.dur=Math.max(s.vis,s.n*.06);s.pre=tot;tot+=s.dur+3});
+
+/* ---------- Diktor idarəsi ---------- */
+let si=-1,st=0,hold=0,ph='run',fa=0,state='idle',paused=false,vol=1,voice=null,files=[],subsOn=true,last=0;
+const N={q:[],i:-1,done:true,mode:'timed',tok:0,t:0,au:null,wait:0,tot:0,tt:0};
+const syn=window.speechSynthesis;
+function pickV(){let m;if(syn){const a=syn.getVoices().filter(v=>/^az/i.test(v.lang));voice=a.find(v=>/babek|male|kişi|kisi/i.test(v.name))||a[0]||null;
+  m=voice?'Səs: '+voice.name+' ('+voice.lang+')'+(/babek|male/i.test(voice.name)?'':' – kişi səsi olduğu təsdiqlənmədi'):'Azərbaycan dili səsi bu cihazda tapılmadı. Yalnız subtitr rejimi işləyəcək; "Audio fayl" düyməsi ilə hazır səs yükləyə bilərsiniz.'}
+ else m='Brauzer SpeechSynthesis dəstəkləmir. Subtitr rejimi; "Audio fayl" ilə səs yükləyin.';
+ if(files.length)m+=' | Yüklənmiş audio: '+files.length+' fayl';$('vi').textContent=m;$('note').textContent=m}
+if(syn){syn.onvoiceschanged=pickV}pickV();
+function setSub(i){const s=$('sub');s.textContent=i>=0?N.q[i]:'';s.style.display=subsOn&&i>=0?'block':'none'}
+function nEnd(){N.done=true}
+function nNext(){N.i++;if(N.i>=N.q.length){nEnd();return}setSub(N.i);N.t=0;N.tt=0;
+ if(N.mode=='tts'){const tk=N.tok,u=new SpeechSynthesisUtterance(N.q[N.i]);u.voice=voice;u.lang=voice.lang;u.rate=.97;u.pitch=.85;u.volume=vol;
+  u.onend=u.onerror=()=>{if(tk==N.tok)N.wait=.25};syn.speak(u)}}
+function nStart(sc,idx){N.tok++;N.q=sc.tx;N.i=-1;N.done=false;N.au=null;N.wait=0;const f=files[idx];
+ if(f){N.mode='audio';N.tot=sc.n;const a=new Audio(f.url);a.volume=vol;N.au=a;a.onended=nEnd;a.onerror=()=>{N.au=null;N.mode='timed';nNext()};
+  a.play().catch(()=>{N.au=null;N.mode='timed';nNext()});N.i=0;setSub(0);return}
+ N.mode=voice?'tts':'timed';nNext()}
+function nUpd(dt){if(N.done)return;
+ if(N.mode=='audio'&&N.au){const a=N.au,f=a.duration?a.currentTime/a.duration*N.tot:0;let acc=0,k=0;for(;k<N.q.length-1;k++){acc+=N.q[k].length;if(f<acc)break}if(k!=N.i){N.i=k;setSub(k)}return}
+ if(N.wait>0){N.wait-=dt;if(N.wait<=0)nNext();return}
+ N.t+=dt;const s=N.q[N.i]||'';
+ if(N.mode=='timed'){if(N.t>=s.length*.07+.6)nNext()}
+ else if(N.t>s.length*.2+8){syn.cancel();nNext()}}
+
+/* ---------- Əsas dövr ---------- */
+function go(i){si=i;st=0;hold=0;ph='run';nStart(S[i],i)}
+function begin(){if(syn)syn.cancel();if(N.au)N.au.pause();N.tok++;paused=false;state='run';si=-1;$('big').style.display='none';$('note').style.display='none';
+ setTimeout(()=>{go(0);ph='in';fa=1},90)}
+function pause(){if(state!='run'||paused)return;paused=true;if(syn)syn.pause();if(N.au)N.au.pause()}
+function resume(){if(state!='run'||!paused)return;paused=false;if(syn)syn.resume();if(N.au)N.au.play()}
+function upd(dt){if(si<0)return;st+=dt;nUpd(dt);const s=S[si];
+ if(ph=='run'){if(st>=s.vis&&st>=s.dur&&N.done){hold+=dt;if(hold>=2){ph='out';fa=0}}}
+ else if(ph=='out'){fa+=dt/.9;if(fa>=1){fa=1;if(si<S.length-1){go(si+1);ph='in'}else{state='end';$('sub').style.display='none';$('big').style.display='flex';$('start').textContent='↻ Yenidən';$('vi').textContent='Animasiya tamamlandı.'}}}
+ else if(ph=='in'){fa-=dt/.9;if(fa<=0){fa=0;ph='run'}}}
+function render(){c.clearRect(0,0,W,H);if(si<0){bgd();return}const s=S[si];c.save();s.d(cl(st/s.dur),st);c.restore();
+ if(fa>0){c.fillStyle='rgba(0,0,0,'+fa+')';c.fillRect(0,0,W,H)}
+ $('pgi').style.width=(100*cl((s.pre+Math.min(st,s.dur+2))/tot))+'%';$('sc').textContent='Səhnə '+(si+1)+'/'+S.length}
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000||0);last=now;if(state=='run'&&!paused)upd(dt);render()}
+requestAnimationFrame(loop);
+
+/* ---------- İdarəetmə ---------- */
+const play=()=>{state=='run'?resume():begin()};
+$('start').onclick=begin;$('bplay').onclick=play;$('bpause').onclick=pause;$('brep').onclick=begin;
+$('vol').oninput=e=>{vol=+e.target.value;if(N.au)N.au.volume=vol};
+$('bcc').onclick=()=>{subsOn=!subsOn;$('bcc').textContent='Subtitr: '+(subsOn?'açıq':'bağlı');setSub(N.i>=0&&state=='run'?N.i:-1)};
+$('bfs').onclick=()=>document.fullscreenElement?document.exitFullscreen():$('stage').requestFullscreen&&$('stage').requestFullscreen();
+$('bau').onclick=()=>$('af').click();
+$('af').onchange=e=>{files=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true})).map(f=>({url:URL.createObjectURL(f)}));pickV()};
+addEventListener('keydown',e=>{if(e.code=='Space'){e.preventDefault();state=='run'?(paused?resume():pause()):begin()}});
+const fit=()=>$('stage').style.setProperty('--u',($('stage').clientWidth/1920)+'px');
+new ResizeObserver(fit).observe($('stage'));fit();
+})();
+</script></body></html>
